@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>숫자 맞추기 게임</title>
+<style>
+    :root {
+        --low-color: #ff9f43;
+        --high-color: #4a9dff;
+        --correct-color: #2ecc71;
+        --invalid-color: #ff5e5e;
+        --start-color: #a29bfe;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+        background: radial-gradient(circle at top, #2c2f7a 0%, #14152b 65%, #0a0b1a 100%);
+        background-attachment: fixed;
+        color: #f4f4f9;
+        overflow-x: hidden;
+    }
+
+    body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background:
+            radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.5) 0, transparent 50%),
+            radial-gradient(2px 2px at 70% 20%, rgba(255,255,255,0.4) 0, transparent 50%),
+            radial-gradient(1.5px 1.5px at 40% 80%, rgba(255,255,255,0.3) 0, transparent 50%),
+            radial-gradient(1.5px 1.5px at 85% 65%, rgba(255,255,255,0.4) 0, transparent 50%),
+            radial-gradient(2px 2px at 55% 50%, rgba(255,255,255,0.3) 0, transparent 50%);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .game-card {
+        position: relative;
+        z-index: 1;
+        width: 380px;
+        max-width: 90vw;
+        padding: 36px 32px;
+        border-radius: 22px;
+        background: linear-gradient(160deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03));
+        border: 1px solid rgba(255,255,255,0.15);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05) inset;
+        text-align: center;
+        animation: card-in 0.5s ease-out;
+    }
+
+    @keyframes card-in {
+        from { opacity: 0; transform: translateY(24px) scale(0.97); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    h1 {
+        margin: 0 0 4px;
+        font-size: 26px;
+        letter-spacing: 0.5px;
+        background: linear-gradient(90deg, #ffd166, #ff6b9d, #4a9dff);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+    .subtitle {
+        margin: 0 0 22px;
+        font-size: 13px;
+        color: rgba(244,244,249,0.6);
+    }
+
+    .range-track {
+        position: relative;
+        height: 14px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.08);
+        overflow: hidden;
+        margin-bottom: 6px;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+    }
+
+    .range-fill {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: {{ fill_left }}%;
+        width: {{ fill_width }}%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #ff9f43, #ffd166, #4a9dff);
+        transition: all 0.4s ease;
+    }
+
+    .range-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        color: rgba(244,244,249,0.45);
+        margin-bottom: 22px;
+    }
+
+    .status-box {
+        border-radius: 14px;
+        padding: 16px 12px;
+        margin-bottom: 20px;
+        font-size: 17px;
+        font-weight: 700;
+        border: 1px solid transparent;
+        transition: all 0.25s ease;
+    }
+
+    .status-start   { background: rgba(162,155,254,0.15); color: var(--start-color); border-color: rgba(162,155,254,0.3); }
+    .status-low     { background: rgba(255,159,67,0.15); color: var(--low-color); border-color: rgba(255,159,67,0.35); animation: bump 0.35s ease; }
+    .status-high    { background: rgba(74,157,255,0.15); color: var(--high-color); border-color: rgba(74,157,255,0.35); animation: bump 0.35s ease; }
+    .status-invalid { background: rgba(255,94,94,0.15); color: var(--invalid-color); border-color: rgba(255,94,94,0.35); animation: shake 0.4s ease; }
+    .status-correct {
+        background: linear-gradient(135deg, rgba(46,204,113,0.2), rgba(74,157,255,0.15));
+        color: var(--correct-color);
+        border-color: rgba(46,204,113,0.4);
+        font-size: 18px;
+        animation: pop 0.5s ease;
+    }
+
+    @keyframes bump {
+        0% { transform: scale(0.96); }
+        60% { transform: scale(1.03); }
+        100% { transform: scale(1); }
+    }
+
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-6px); }
+        75% { transform: translateX(6px); }
+    }
+
+    @keyframes pop {
+        0% { transform: scale(0.85); opacity: 0.5; }
+        60% { transform: scale(1.05); }
+        100% { transform: scale(1); opacity: 1; }
+    }
+
+    .tries {
+        display: inline-block;
+        margin-bottom: 18px;
+        padding: 4px 14px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.08);
+        font-size: 13px;
+        color: rgba(244,244,249,0.75);
+    }
+
+    form { margin: 0; }
+
+    .guess-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+
+    input[type="number"] {
+        flex: 1;
+        min-width: 0;
+        padding: 12px 14px;
+        font-size: 20px;
+        text-align: center;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.07);
+        color: #fff;
+        outline: none;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    input[type="number"]:focus {
+        border-color: #ffd166;
+        box-shadow: 0 0 0 3px rgba(255,209,102,0.25);
+    }
+
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    button {
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.15s ease, filter 0.15s ease;
+    }
+
+    button:active { transform: scale(0.96); }
+
+    .btn-primary {
+        padding: 0 22px;
+        background: linear-gradient(135deg, #ff9f43, #ff6b9d);
+        color: #1a1a2e;
+    }
+
+    .btn-primary:hover { filter: brightness(1.08); }
+
+    .btn-secondary {
+        width: 100%;
+        padding: 12px;
+        margin-top: 4px;
+        background: rgba(255,255,255,0.1);
+        color: #f4f4f9;
+        border: 1px solid rgba(255,255,255,0.18);
+    }
+
+    .btn-secondary:hover { background: rgba(255,255,255,0.16); }
+
+    .btn-win {
+        width: 100%;
+        padding: 14px;
+        background: linear-gradient(135deg, #2ecc71, #4a9dff);
+        color: #0a0b1a;
+        font-size: 17px;
+    }
+
+    .history {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin: 4px 0 20px;
+        min-height: 26px;
+    }
+
+    .chip {
+        font-size: 12px;
+        font-weight: 700;
+        padding: 4px 9px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+    }
+
+    .chip-low { background: rgba(255,159,67,0.18); color: var(--low-color); }
+    .chip-high { background: rgba(74,157,255,0.18); color: var(--high-color); }
+    .chip-correct { background: rgba(46,204,113,0.2); color: var(--correct-color); }
+
+    .trophy {
+        font-size: 46px;
+        margin-bottom: 4px;
+        animation: float 2s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-8px); }
+    }
+</style>
+</head>
+<body>
+    <div class="game-card">
+        <h1>🎯 숫자 맞추기</h1>
+        <p class="subtitle">{{ min_num }} ~ {{ max_num }} 사이의 숫자를 맞춰보세요</p>
+
+        <div class="range-track">
+            <div class="range-fill"></div>
+        </div>
+        <div class="range-labels">
+            <span>{{ low }}</span>
+            <span>{{ high }}</span>
+        </div>
+
+        {% if done %}
+            <div class="trophy">🏆</div>
+        {% endif %}
+
+        <div class="status-box status-{{ status }}">{{ message }}</div>
+
+        <div class="tries">시도 횟수 {{ tries }}</div>
+
+        {% if history %}
+        <div class="history">
+            {% for h in history %}
+                {% if h.result == "low" %}
+                    <span class="chip chip-low">{{ h.value }} ⬆️</span>
+                {% elif h.result == "high" %}
+                    <span class="chip chip-high">{{ h.value }} ⬇️</span>
+                {% else %}
+                    <span class="chip chip-correct">{{ h.value }} ✅</span>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if not done %}
+        <form action="/guess" method="post">
+            <div class="guess-row">
+                <input type="number" name="guess" min="{{ min_num }}" max="{{ max_num }}" placeholder="숫자 입력" required autofocus>
+                <button type="submit" class="btn-primary">확인</button>
+            </div>
+        </form>
+        <form action="/new" method="post">
+            <button type="submit" class="btn-secondary">새 게임</button>
+        </form>
+        {% else %}
+        <form action="/new" method="post">
+            <button type="submit" class="btn-win">🔄 다시 도전하기</button>
+        </form>
+        {% endif %}
+    </div>
+</body>
+</html>
